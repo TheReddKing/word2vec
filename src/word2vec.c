@@ -427,10 +427,16 @@ void *TrainModelThread(void *id) {
     for (c = 0; c < layer1_size; c++) neu1[c] = 0;
     for (c = 0; c < layer1_size; c++) neu1e[c] = 0;
     next_random = next_random * (unsigned long long)25214903917 + 11;
-    b = next_random % window;
+    //So the window is the entire row. So....
+
+    // b = next_random % window; //ORIGINAL
+    window = sizeof(sen);
+    b = next_random % window; //MODIFIED
+
     if (cbow) {  //train the cbow architecture
       // in -> hidden
       cw = 0;
+      //FIND THE LAST ONE SENTENCE
       for (a = b; a < window * 2 + 1 - b; a++) if (a != window) {
         c = sentence_position - window + a;
         if (c < 0) continue;
@@ -458,6 +464,7 @@ void *TrainModelThread(void *id) {
           for (c = 0; c < layer1_size; c++) syn1[c + l2] += g * neu1[c];
         }
         // NEGATIVE SAMPLING
+        // Preferably not on the same row.....
         if (negative > 0) for (d = 0; d < negative + 1; d++) {
           if (d == 0) {
             target = word;
