@@ -34,7 +34,7 @@ struct vocab_word {
   char *word, *code, codelen;
 };
 
-char train_file[MAX_STRING], output_file[MAX_STRING];
+char train_file[MAX_STRING], output_file[MAX_STRING],newline_file[MAX_STRING];
 char save_vocab_file[MAX_STRING], read_vocab_file[MAX_STRING];
 struct vocab_word *vocab;
 int binary = 0, cbow = 1, debug_mode = 2, window = 5, min_count = 5, num_threads = 12, min_reduce = 1;
@@ -66,14 +66,15 @@ void InitUnigramTable() {
     if (i >= vocab_size) i = vocab_size - 1;
   }
 }
-
+// inQuotes = False
 // Reads a single word from a file, assuming space + tab + EOL to be word boundaries
 void ReadWord(char *word, FILE *fin) {
   int a = 0, ch;
   while (!feof(fin)) {
     ch = fgetc(fin);
     if (ch == 13) continue;
-    if ((ch == ' ') || (ch == '\t') || (ch == '\n')) {
+    if (ch == '\"') continue; //No QUOTES
+    if ((ch == ' ') || (ch == '\t') || (ch == '\n') || (ch== ',')) { //ch == ' ' ||  (NO WHITE SPACE FOR NOW)
       if (a > 0) {
         if (ch == '\n') ungetc(ch, fin);
         break;
@@ -282,6 +283,9 @@ void LearnVocabFromTrainFile() {
     i = SearchVocab(word);
     if (i == -1) {
       a = AddWordToVocab(word);
+      if (debug_mode > 4) {
+        // printf("WORD: %s\n",word);
+      }
       vocab[a].cn = 1;
     } else vocab[i].cn++;
     if (vocab_size > vocab_hash_size * 0.7) ReduceVocab();
@@ -317,6 +321,7 @@ void ReadVocab() {
     ReadWord(word, fin);
     if (feof(fin)) break;
     a = AddWordToVocab(word);
+    printf("WORD: %s\n",word);
     fscanf(fin, "%lld%c", &vocab[a].cn, &c);
     i++;
   }
@@ -360,6 +365,10 @@ void InitNet() {
 }
 
 void *TrainModelThread(void *id) {
+
+  if (debug_mode > 8) {
+    // printf("Thread training\n");
+  }
   long long a, b, d, cw, word, last_word, sentence_length = 0, sentence_position = 0;
   long long word_count = 0, last_word_count = 0, sen[MAX_SENTENCE_LENGTH + 1];
   long long l1, l2, c, target, label, local_iter = iter;
@@ -542,6 +551,8 @@ void *TrainModelThread(void *id) {
 }
 
 void TrainModel() {
+
+  // USES THIS CODE
   long a, b, c, d;
   FILE *fo;
   pthread_t *pt = (pthread_t *)malloc(num_threads * sizeof(pthread_t));
@@ -676,7 +687,7 @@ int main(int argc, char **argv) {
   if ((i = ArgPos((char *)"-train", argc, argv)) > 0) strcpy(train_file, argv[i + 1]);
   if ((i = ArgPos((char *)"-save-vocab", argc, argv)) > 0) strcpy(save_vocab_file, argv[i + 1]);
   if ((i = ArgPos((char *)"-read-vocab", argc, argv)) > 0) strcpy(read_vocab_file, argv[i + 1]);
-  if ((i = ArgPos((char *)"-debug", argc, argv)) > 0) debug_mode = atoi(argv[i + 1]);
+  if ((i = ArgPos((char *)"-debug", argc, argv)) > 0) { debug_mode = atoi(argv[i + 1]); printf("Debug_mode %i", debug_mode);}
   if ((i = ArgPos((char *)"-binary", argc, argv)) > 0) binary = atoi(argv[i + 1]);
   if ((i = ArgPos((char *)"-cbow", argc, argv)) > 0) cbow = atoi(argv[i + 1]);
   if (cbow) alpha = 0.05;
